@@ -1,25 +1,25 @@
-# hostme
+# hoston
 
 Domain & hosting setup CLI. Automates DNS configuration, hosting setup, and custom domain provisioning across NameCheap, CloudFlare, Firebase, and GitHub Pages.
 
 ## Install
 
 ```sh
-go install github.com/trakhimenok/hostme@latest
+go install github.com/trakhimenok/hoston@latest
 ```
 
 Or build from source:
 
 ```sh
-git clone https://github.com/trakhimenok/hostme.git
-cd hostme
-go build -o hostme .
+git clone https://github.com/trakhimenok/hoston.git
+cd hoston
+go build -o hoston .
 ```
 
 ## Prerequisites
 
 1. **NameCheap API access**: Enable at https://ap.www.namecheap.com/settings/tools/apiaccess/ and whitelist your IP
-2. **CloudFlare API token**: Create at https://dash.cloudflare.com/profile/api-tokens (use "Edit zone DNS" template)
+2. **CloudFlare API token**: Create a Custom Token at https://dash.cloudflare.com/profile/api-tokens with `Zone > Zone: Edit` and `Zone > DNS: Edit` permissions (the "Edit zone DNS" template lacks zone creation rights)
 3. **Firebase tools** (for Firebase hosting): `npm i -g firebase-tools && firebase login`
 4. **GitHub CLI** (for GitHub Pages): `brew install gh && gh auth login`
 
@@ -27,25 +27,25 @@ go build -o hostme .
 
 ```sh
 # Store credentials (one-time)
-hostme auth namecheap
-hostme auth cloudflare
+hoston auth namecheap
+hoston auth cloudflare
 
 # Set up a domain
-hostme setup example.com
+hoston setup example.com
 ```
 
 ## Commands
 
-### `hostme auth <provider>`
+### `hoston auth <provider>`
 
 Store API credentials securely in macOS Keychain.
 
 ```sh
-hostme auth namecheap    # NameCheap API user, key, username
-hostme auth cloudflare   # CloudFlare API token
+hoston auth namecheap    # NameCheap API user, key, username
+hoston auth cloudflare   # CloudFlare API token
 ```
 
-### `hostme setup <domain>`
+### `hoston setup <domain>`
 
 Interactive wizard that:
 
@@ -60,14 +60,14 @@ Interactive wizard that:
 
 If any step fails, it shows manual instructions and waits for confirmation.
 
-### `hostme status <domain>`
+### `hoston status <domain>`
 
 Check domain status across providers. *(Coming soon)*
 
 ## Architecture
 
 ```
-hostme
+hoston
 ├── cmd/                     # CLI commands (cobra)
 ├── internal/
 │   ├── cloudflare/          # CloudFlare API (cloudflare-go SDK)

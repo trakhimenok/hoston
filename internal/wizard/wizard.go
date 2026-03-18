@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	cfclient "github.com/trakhimenok/hostme/internal/cloudflare"
-	dnspkg "github.com/trakhimenok/hostme/internal/dns"
-	"github.com/trakhimenok/hostme/internal/firebase"
-	ghpages "github.com/trakhimenok/hostme/internal/github"
-	"github.com/trakhimenok/hostme/internal/keychain"
-	"github.com/trakhimenok/hostme/internal/namecheap"
+	cfclient "github.com/trakhimenok/hoston/internal/cloudflare"
+	dnspkg "github.com/trakhimenok/hoston/internal/dns"
+	"github.com/trakhimenok/hoston/internal/firebase"
+	ghpages "github.com/trakhimenok/hoston/internal/github"
+	"github.com/trakhimenok/hoston/internal/keychain"
+	"github.com/trakhimenok/hoston/internal/namecheap"
 )
 
 // RunSetup orchestrates the full domain setup wizard.
@@ -27,11 +27,11 @@ func RunSetup(ctx context.Context, domain string, verbose bool) error {
 	fmt.Println("Step 1: Verifying credentials...")
 	cfToken, err := keychain.GetCloudflareToken()
 	if err != nil {
-		return fmt.Errorf("CloudFlare credentials not found. Run: hostme auth cloudflare")
+		return fmt.Errorf("CloudFlare credentials not found. Run: hoston auth cloudflare")
 	}
 	ncAPIUser, ncAPIKey, ncUsername, err := keychain.GetNamecheapCredentials()
 	if err != nil {
-		return fmt.Errorf("NameCheap credentials not found. Run: hostme auth namecheap")
+		return fmt.Errorf("NameCheap credentials not found. Run: hoston auth namecheap")
 	}
 	fmt.Println("✓ Credentials verified")
 

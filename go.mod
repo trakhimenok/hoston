@@ -1,4 +1,4 @@
-module github.com/trakhimenok/hostme
+module github.com/trakhimenok/hoston
 
 go 1.26.1
 

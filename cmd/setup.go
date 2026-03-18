@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/trakhimenok/hostme/internal/wizard"
+	"github.com/trakhimenok/hoston/internal/wizard"
 )
 
 var setupCmd = &cobra.Command{

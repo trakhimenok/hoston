@@ -11,7 +11,7 @@ import (
 )
 
 // ServiceName is the Keychain service identifier for this application.
-const ServiceName = "hostme"
+const ServiceName = "hoston"
 
 // Credential account name constants.
 const (
@@ -122,13 +122,14 @@ func AuthNamecheap() error {
 // AuthCloudflare interactively collects a CloudFlare API token and stores it in the Keychain.
 func AuthCloudflare() error {
 	fmt.Print("\n=== CloudFlare Authentication ===\n")
-	fmt.Print("\nTo create a CloudFlare API token:\n")
-	fmt.Print("  1. Visit https://dash.cloudflare.com/profile/api-tokens\n")
-	fmt.Print("  2. Click \"Create Token\"\n")
-	fmt.Print("  3. Use the \"Edit zone DNS\" template\n")
-	fmt.Print("  4. Scope it to the zones you need\n\n")
+	fmt.Print("\nCreate an API token at:\n")
+	fmt.Print("  https://dash.cloudflare.com/profile/api-tokens\n\n")
+	fmt.Print("Create a Custom Token with these permissions:\n")
+	fmt.Print("  - Zone > Zone: Edit  (required to add new zones)\n")
+	fmt.Print("  - Zone > DNS:  Edit  (required to manage DNS records)\n\n")
+	fmt.Print("Set Zone Resources to: All zones (or specific zones as needed)\n\n")
 
-	fmt.Print("CloudFlare API Token: ")
+	fmt.Print("CloudFlare API token: ")
 	tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
 		return fmt.Errorf("failed to read CloudFlare API token: %w", err)

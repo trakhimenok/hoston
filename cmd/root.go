@@ -10,10 +10,10 @@ import (
 var verbose bool
 
 var rootCmd = &cobra.Command{
-	Use:     "hostme",
+	Use:     "hoston",
 	Short:   "Domain & hosting setup CLI",
 	Version: "0.1.0",
-	Long: `hostme manages domain registration and hosting setup across multiple providers:
+	Long: `hoston manages domain registration and hosting setup across multiple providers:
   - NameCheap  (domain registration & DNS)
   - CloudFlare (DNS & CDN)
   - Firebase   (hosting)

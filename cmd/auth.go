@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/trakhimenok/hostme/internal/keychain"
+	"github.com/trakhimenok/hoston/internal/keychain"
 )
 
 var authCmd = &cobra.Command{

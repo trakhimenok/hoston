@@ -11,8 +11,8 @@ import "testing"
 // TestServiceName verifies the Keychain service identifier is set to the
 // expected application name.
 func TestServiceName(t *testing.T) {
-	if ServiceName != "hostme" {
-		t.Errorf("ServiceName = %q; want %q", ServiceName, "hostme")
+	if ServiceName != "hoston" {
+		t.Errorf("ServiceName = %q; want %q", ServiceName, "hoston")
 	}
 }
 
