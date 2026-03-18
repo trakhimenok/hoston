@@ -28,6 +28,13 @@ var store credentials.Store = credentials.NewKeychainStore()
 // alternative platforms).
 func SetStore(s credentials.Store) { store = s }
 
+// Preload fetches all credentials in a single keychain query so that
+// subsequent Get calls are served from memory (no extra password prompts).
+func Preload() error {
+	_, err := store.GetAll()
+	return err
+}
+
 // StoreCredential stores a credential value.
 func StoreCredential(account, value string) error {
 	return store.Set(account, value)

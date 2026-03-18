@@ -27,6 +27,11 @@ var setupCmd = &cobra.Command{
 		domain := args[0]
 		ctx := cmd.Context()
 
+		// Preload all credentials in one keychain query (single password prompt).
+		if err := keychain.Preload(); err != nil {
+			return err
+		}
+
 		// Resolve DNS provider credentials and build client.
 		cfToken, err := keychain.GetCloudflareToken()
 		if err != nil {

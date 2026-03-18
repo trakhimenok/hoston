@@ -8,6 +8,11 @@ type Store interface {
 	// Get retrieves a credential value. Returns ("", nil) if not found.
 	Get(account string) (string, error)
 
+	// GetAll retrieves all credentials for the service at once.
+	// This allows implementations to minimise auth prompts (e.g. a single
+	// macOS Keychain dialog instead of one per credential).
+	GetAll() (map[string]string, error)
+
 	// Set stores a credential value, replacing any existing value.
 	Set(account, value string) error
 
