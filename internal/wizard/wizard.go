@@ -265,12 +265,17 @@ func RunSetup(ctx context.Context, cfg SetupConfig) error {
 	}
 	fmt.Println(successStyle.Render(fmt.Sprintf("✓ %s configured", selectedProvider.Name())))
 
-	// For Firebase, the custom domain must be added via the Console.
+	// For Firebase, show the default URLs and a console link for custom domain.
 	if selectedProvider.Name() == "Firebase Hosting" {
-		consoleURL := firebase.ConsoleURL(params["project_id"], params["site_name"])
+		siteName := params["site_name"]
 		linkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Underline(true)
 		dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 		fmt.Println()
+		fmt.Println(dimStyle.Render("  Default URLs (available now):"))
+		fmt.Println("    " + linkStyle.Render(fmt.Sprintf("https://%s.web.app", siteName)))
+		fmt.Println("    " + linkStyle.Render(fmt.Sprintf("https://%s.firebaseapp.com", siteName)))
+		fmt.Println()
+		consoleURL := firebase.ConsoleURL(params["project_id"], siteName)
 		fmt.Println(warnStyle.Render("  ⚠ Add your custom domain in the Firebase Console:"))
 		fmt.Println("    " + linkStyle.Render(consoleURL))
 		fmt.Println(dimStyle.Render("    (Click \"Add custom domain\" and enter: " + domain + ")"))
