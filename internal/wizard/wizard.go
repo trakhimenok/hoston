@@ -121,35 +121,47 @@ func RunSetup(ctx context.Context, cfg SetupConfig) error {
 	logger.Debug("resolved nameservers", "nameservers", nameservers)
 
 	// -----------------------------------------------------------------------
-	// Step 4: Update registrar nameservers
+	// Step 4: Update registrar nameservers (skip if already correct)
 	// -----------------------------------------------------------------------
 	fmt.Println()
-	fmt.Println(stepStyle.Render("Step 4: Updating registrar nameservers..."))
+	fmt.Println(stepStyle.Render("Step 4: Checking current nameservers..."))
 
-	err = cfg.Registrar.SetCustomNameservers(domain, nameservers)
-	if err != nil {
-		fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ Automatic NS update failed: %v", err)))
-		fmt.Println()
-		fmt.Println("Please update nameservers manually:")
-		fmt.Printf("  1. Go to your registrar's domain control panel for %s\n", domain)
-		fmt.Println("  2. Under 'Nameservers', select 'Custom DNS'")
-		fmt.Printf("  3. Enter: %s\n", strings.Join(nameservers, ", "))
-		fmt.Println()
-
-		var done bool
-		if err := huh.NewConfirm().
-			Title("Have you updated the nameservers manually?").
-			Affirmative("Yes, continue").
-			Negative("No, abort").
-			Value(&done).
-			Run(); err != nil {
-			return fmt.Errorf("prompt failed: %w", err)
-		}
-		if !done {
-			return fmt.Errorf("setup aborted — update nameservers and rerun")
-		}
+	currentNS, nsErr := cfg.Registrar.GetNameservers(domain)
+	if nsErr == nil && nsMatch(currentNS, nameservers) {
+		fmt.Println(successStyle.Render("✓ Nameservers already point to DNS provider — skipping update"))
 	} else {
-		fmt.Println(successStyle.Render("✓ Registrar nameservers updated"))
+		if nsErr == nil {
+			logger.Debug("current nameservers don't match", "current", currentNS, "expected", nameservers)
+		} else {
+			logger.Debug("could not fetch current nameservers", "error", nsErr)
+		}
+		fmt.Println(stepStyle.Render("  Updating registrar nameservers..."))
+
+		err = cfg.Registrar.SetCustomNameservers(domain, nameservers)
+		if err != nil {
+			fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ Automatic NS update failed: %v", err)))
+			fmt.Println()
+			fmt.Println("Please update nameservers manually:")
+			fmt.Printf("  1. Go to your registrar's domain control panel for %s\n", domain)
+			fmt.Println("  2. Under 'Nameservers', select 'Custom DNS'")
+			fmt.Printf("  3. Enter: %s\n", strings.Join(nameservers, ", "))
+			fmt.Println()
+
+			var done bool
+			if err := huh.NewConfirm().
+				Title("Have you updated the nameservers manually?").
+				Affirmative("Yes, continue").
+				Negative("No, abort").
+				Value(&done).
+				Run(); err != nil {
+				return fmt.Errorf("prompt failed: %w", err)
+			}
+			if !done {
+				return fmt.Errorf("setup aborted — update nameservers and rerun")
+			}
+		} else {
+			fmt.Println(successStyle.Render("✓ Registrar nameservers updated"))
+		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -388,4 +400,24 @@ func getPublicIP(ctx context.Context) string {
 		return ip
 	}
 	return ""
+}
+
+// nsMatch checks whether all expected nameservers appear in the current list.
+// Handles trailing-dot normalization (e.g. "ns1.example.com." vs "ns1.example.com").
+func nsMatch(current, expected []string) bool {
+	if len(current) == 0 {
+		return false
+	}
+	norm := make(map[string]bool, len(current)*2)
+	for _, ns := range current {
+		ns = strings.ToLower(strings.TrimSuffix(ns, "."))
+		norm[ns] = true
+	}
+	for _, e := range expected {
+		e = strings.ToLower(strings.TrimSuffix(e, "."))
+		if !norm[e] {
+			return false
+		}
+	}
+	return true
 }
