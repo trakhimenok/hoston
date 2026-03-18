@@ -1,16 +1,20 @@
 package credentials
 
 import (
+	"encoding/json"
+
 	gokeychain "github.com/keybase/go-keychain"
 )
 
-const serviceName = "hoston"
+const (
+	serviceName = "hoston"
+	accountName = "credentials" // single keychain item holds all credentials
+)
 
-// KeychainStore implements Store using the macOS Keychain.
-// After the first GetAll call, results are cached in memory so that
-// subsequent Get calls never trigger another Keychain auth dialog.
+// KeychainStore implements Store using a single macOS Keychain item that
+// holds all credentials as a JSON map. One item = one password prompt.
 type KeychainStore struct {
-	cache map[string]string // nil until first GetAll
+	cache map[string]string // nil until first load
 }
 
 var _ Store = (*KeychainStore)(nil)
@@ -20,49 +24,91 @@ func NewKeychainStore() *KeychainStore {
 	return &KeychainStore{}
 }
 
-// GetAll fetches every credential stored under the hoston service.
-// It first lists account names (attributes only), then fetches each
-// value individually. All results are cached so subsequent Get calls
-// are served from memory with no further Keychain prompts.
-func (k *KeychainStore) GetAll() (map[string]string, error) {
-	// Step 1: list all account names (attributes only — no data).
-	query := gokeychain.NewItem()
-	query.SetSecClass(gokeychain.SecClassGenericPassword)
-	query.SetService(serviceName)
-	query.SetMatchLimit(gokeychain.MatchLimitAll)
-	query.SetReturnAttributes(true)
-
-	results, err := gokeychain.QueryItem(query)
-	if err == gokeychain.ErrorItemNotFound {
-		k.cache = make(map[string]string)
-		return k.cache, nil
+// load reads the single keychain item into the in-memory cache.
+func (k *KeychainStore) load() error {
+	if k.cache != nil {
+		return nil
 	}
+
+	raw, err := readItem()
 	if err != nil {
-		return nil, err
+		return err
+	}
+	if raw == "" {
+		// Try migrating legacy per-account items.
+		k.cache = migrateLegacy()
+		if len(k.cache) > 0 {
+			return k.flush()
+		}
+		k.cache = make(map[string]string)
+		return nil
 	}
 
-	// Step 2: fetch data for each account individually.
-	m := make(map[string]string, len(results))
-	for _, r := range results {
-		if r.Account == "" {
-			continue
-		}
-		val, err := k.getSingle(r.Account)
-		if err != nil {
-			return nil, err
-		}
-		m[r.Account] = val
+	m := make(map[string]string)
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		return err
 	}
 	k.cache = m
-	return m, nil
+	return nil
 }
 
-// getSingle fetches a single credential value (bypasses cache).
-func (k *KeychainStore) getSingle(account string) (string, error) {
+// flush writes the cache back to the single keychain item.
+func (k *KeychainStore) flush() error {
+	b, err := json.Marshal(k.cache)
+	if err != nil {
+		return err
+	}
+	return writeItem(string(b))
+}
+
+func (k *KeychainStore) GetAll() (map[string]string, error) {
+	if err := k.load(); err != nil {
+		return nil, err
+	}
+	cp := make(map[string]string, len(k.cache))
+	for key, val := range k.cache {
+		cp[key] = val
+	}
+	return cp, nil
+}
+
+func (k *KeychainStore) Get(account string) (string, error) {
+	if err := k.load(); err != nil {
+		return "", err
+	}
+	return k.cache[account], nil
+}
+
+func (k *KeychainStore) Set(account, value string) error {
+	if err := k.load(); err != nil {
+		return err
+	}
+	k.cache[account] = value
+	return k.flush()
+}
+
+func (k *KeychainStore) Delete(account string) error {
+	if err := k.load(); err != nil {
+		return err
+	}
+	delete(k.cache, account)
+	return k.flush()
+}
+
+func (k *KeychainStore) Has(account string) bool {
+	if err := k.load(); err != nil {
+		return false
+	}
+	return k.cache[account] != ""
+}
+
+// --- low-level keychain helpers (single item) ---
+
+func readItem() (string, error) {
 	query := gokeychain.NewItem()
 	query.SetSecClass(gokeychain.SecClassGenericPassword)
 	query.SetService(serviceName)
-	query.SetAccount(account)
+	query.SetAccount(accountName)
 	query.SetMatchLimit(gokeychain.MatchLimitOne)
 	query.SetReturnData(true)
 
@@ -76,48 +122,54 @@ func (k *KeychainStore) getSingle(account string) (string, error) {
 	return string(results[0].Data), nil
 }
 
-func (k *KeychainStore) Get(account string) (string, error) {
-	// Serve from cache when available (populated by GetAll / Preload).
-	if k.cache != nil {
-		return k.cache[account], nil
-	}
-	return k.getSingle(account)
-}
-
-func (k *KeychainStore) Set(account, value string) error {
-	_ = k.Delete(account)
+func writeItem(data string) error {
+	// Delete then re-create to update.
+	del := gokeychain.NewItem()
+	del.SetSecClass(gokeychain.SecClassGenericPassword)
+	del.SetService(serviceName)
+	del.SetAccount(accountName)
+	_ = gokeychain.DeleteItem(del)
 
 	item := gokeychain.NewItem()
 	item.SetSecClass(gokeychain.SecClassGenericPassword)
 	item.SetService(serviceName)
-	item.SetAccount(account)
-	item.SetData([]byte(value))
+	item.SetAccount(accountName)
+	item.SetData([]byte(data))
 	item.SetAccessible(gokeychain.AccessibleWhenUnlocked)
 	item.SetSynchronizable(gokeychain.SynchronizableNo)
-
-	if err := gokeychain.AddItem(item); err != nil {
-		return err
-	}
-	// Invalidate cache so next read picks up the new value.
-	k.cache = nil
-	return nil
+	return gokeychain.AddItem(item)
 }
 
-func (k *KeychainStore) Delete(account string) error {
-	item := gokeychain.NewItem()
-	item.SetSecClass(gokeychain.SecClassGenericPassword)
-	item.SetService(serviceName)
-	item.SetAccount(account)
-	err := gokeychain.DeleteItem(item)
-	if err == gokeychain.ErrorItemNotFound {
-		return nil
-	}
-	// Invalidate cache.
-	k.cache = nil
-	return err
+// --- legacy migration (old per-account items) ---
+
+var legacyAccounts = []string{
+	"cloudflare-api-token",
+	"namecheap-username",
+	"namecheap-api-key",
 }
 
-func (k *KeychainStore) Has(account string) bool {
-	v, err := k.Get(account)
-	return err == nil && v != ""
+func migrateLegacy() map[string]string {
+	m := make(map[string]string)
+	for _, acct := range legacyAccounts {
+		query := gokeychain.NewItem()
+		query.SetSecClass(gokeychain.SecClassGenericPassword)
+		query.SetService(serviceName)
+		query.SetAccount(acct)
+		query.SetMatchLimit(gokeychain.MatchLimitOne)
+		query.SetReturnData(true)
+
+		results, err := gokeychain.QueryItem(query)
+		if err != nil || len(results) == 0 {
+			continue
+		}
+		m[acct] = string(results[0].Data)
+
+		// Remove old item after reading.
+		del := gokeychain.NewItem()
+		del.SetSecClass(gokeychain.SecClassGenericPassword)
+		del.SetService(serviceName)
+		del.SetAccount(acct)
+		_ = gokeychain.DeleteItem(del)
+	}
+	return m
 }
