@@ -5,8 +5,11 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/trakhimenok/hoston/internal/credentials"
 )
+
+var successStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10"))
 
 // ServiceName is the Keychain service identifier for this application.
 const ServiceName = "hoston"
@@ -86,7 +89,7 @@ func AuthNamecheap() error {
 		return fmt.Errorf("failed to store NameCheap API key: %w", err)
 	}
 
-	fmt.Println("✓ NameCheap credentials stored.")
+	fmt.Println(successStyle.Render("✓ NameCheap credentials stored"))
 	return nil
 }
 
@@ -94,12 +97,15 @@ func AuthNamecheap() error {
 func AuthCloudflare() error {
 	var token string
 
-	fmt.Println("Create an API token at:")
-	fmt.Println("  https://dash.cloudflare.com/profile/api-tokens")
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	linkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Underline(true)
+
+	fmt.Println(dimStyle.Render("Create an API token at:"))
+	fmt.Println("  " + linkStyle.Render("https://dash.cloudflare.com/profile/api-tokens"))
 	fmt.Println()
-	fmt.Println("Required permissions:")
-	fmt.Println("  • Zone > Zone: Edit")
-	fmt.Println("  • Zone > DNS:  Edit")
+	fmt.Println(dimStyle.Render("Required permissions:"))
+	fmt.Println(dimStyle.Render("  • Zone > Zone: Edit"))
+	fmt.Println(dimStyle.Render("  • Zone > DNS:  Edit"))
 	fmt.Println()
 
 	form := huh.NewForm(
@@ -126,7 +132,7 @@ func AuthCloudflare() error {
 		return fmt.Errorf("failed to store CloudFlare API token: %w", err)
 	}
 
-	fmt.Println("✓ CloudFlare API token stored.")
+	fmt.Println(successStyle.Render("✓ CloudFlare API token stored"))
 	return nil
 }
 
