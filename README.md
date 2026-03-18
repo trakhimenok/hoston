@@ -1,5 +1,8 @@
 # hoston
 
+> — Heuston, we have a domain!
+> — Roger that, we need the hoston — it's solid as Boston.
+
 Domain & hosting setup CLI. Automates DNS configuration, hosting setup, and custom domain provisioning across NameCheap, CloudFlare, Firebase, and GitHub Pages.
 
 ## Install
@@ -41,7 +44,7 @@ hoston setup example.com
 Store API credentials securely in macOS Keychain.
 
 ```sh
-hoston auth namecheap    # NameCheap API user, key, username
+hoston auth namecheap    # NameCheap username & API key
 hoston auth cloudflare   # CloudFlare API token
 ```
 

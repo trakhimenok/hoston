@@ -25,7 +25,6 @@ func TestAccountConstants(t *testing.T) {
 		name  string
 		value string
 	}{
-		{"AccountNamecheapAPIUser", AccountNamecheapAPIUser},
 		{"AccountNamecheapAPIKey", AccountNamecheapAPIKey},
 		{"AccountNamecheapUsername", AccountNamecheapUsername},
 		{"AccountCloudflareToken", AccountCloudflareToken},
@@ -48,7 +47,6 @@ func TestAccountConstantsAreUnique(t *testing.T) {
 	t.Parallel()
 
 	constants := map[string]string{
-		"AccountNamecheapAPIUser":  AccountNamecheapAPIUser,
 		"AccountNamecheapAPIKey":   AccountNamecheapAPIKey,
 		"AccountNamecheapUsername": AccountNamecheapUsername,
 		"AccountCloudflareToken":   AccountCloudflareToken,

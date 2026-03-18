@@ -15,7 +15,6 @@ const ServiceName = "hoston"
 
 // Credential account name constants.
 const (
-	AccountNamecheapAPIUser  = "namecheap-api-user"
 	AccountNamecheapAPIKey   = "namecheap-api-key"
 	AccountNamecheapUsername = "namecheap-username"
 	AccountCloudflareToken   = "cloudflare-api-token"
@@ -87,9 +86,9 @@ func AuthNamecheap() error {
 
 	scanner := bufio.NewScanner(os.Stdin)
 
-	fmt.Print("NameCheap API User (your API-enabled account username): ")
+	fmt.Print("NameCheap Username: ")
 	scanner.Scan()
-	apiUser := strings.TrimSpace(scanner.Text())
+	username := strings.TrimSpace(scanner.Text())
 
 	fmt.Print("NameCheap API Key: ")
 	apiKeyBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -98,21 +97,11 @@ func AuthNamecheap() error {
 	}
 	apiKey := strings.TrimSpace(string(apiKeyBytes))
 
-	fmt.Print("NameCheap Username (may be same as API user, press Enter to use API user): ")
-	scanner.Scan()
-	username := strings.TrimSpace(scanner.Text())
-	if username == "" {
-		username = apiUser
-	}
-
-	if err := StoreCredential(AccountNamecheapAPIUser, apiUser); err != nil {
-		return fmt.Errorf("failed to store NameCheap API user: %w", err)
+	if err := StoreCredential(AccountNamecheapUsername, username); err != nil {
+		return fmt.Errorf("failed to store NameCheap username: %w", err)
 	}
 	if err := StoreCredential(AccountNamecheapAPIKey, apiKey); err != nil {
 		return fmt.Errorf("failed to store NameCheap API key: %w", err)
-	}
-	if err := StoreCredential(AccountNamecheapUsername, username); err != nil {
-		return fmt.Errorf("failed to store NameCheap username: %w", err)
 	}
 
 	fmt.Print("\n✓ NameCheap credentials stored in Keychain.\n")
@@ -144,34 +133,26 @@ func AuthCloudflare() error {
 	return nil
 }
 
-// GetNamecheapCredentials retrieves all three NameCheap credentials from the Keychain.
+// GetNamecheapCredentials retrieves NameCheap credentials from the Keychain.
 // Returns an error if any credential is missing.
-func GetNamecheapCredentials() (apiUser, apiKey, username string, err error) {
-	apiUser, err = GetCredential(AccountNamecheapAPIUser)
+func GetNamecheapCredentials() (username, apiKey string, err error) {
+	username, err = GetCredential(AccountNamecheapUsername)
 	if err != nil {
-		return "", "", "", fmt.Errorf("missing NameCheap API user: %w", err)
+		return "", "", fmt.Errorf("missing NameCheap username: %w", err)
 	}
-	if apiUser == "" {
-		return "", "", "", fmt.Errorf("missing NameCheap API user")
+	if username == "" {
+		return "", "", fmt.Errorf("missing NameCheap username")
 	}
 
 	apiKey, err = GetCredential(AccountNamecheapAPIKey)
 	if err != nil {
-		return "", "", "", fmt.Errorf("missing NameCheap API key: %w", err)
+		return "", "", fmt.Errorf("missing NameCheap API key: %w", err)
 	}
 	if apiKey == "" {
-		return "", "", "", fmt.Errorf("missing NameCheap API key")
+		return "", "", fmt.Errorf("missing NameCheap API key")
 	}
 
-	username, err = GetCredential(AccountNamecheapUsername)
-	if err != nil {
-		return "", "", "", fmt.Errorf("missing NameCheap username: %w", err)
-	}
-	if username == "" {
-		return "", "", "", fmt.Errorf("missing NameCheap username")
-	}
-
-	return apiUser, apiKey, username, nil
+	return username, apiKey, nil
 }
 
 // GetCloudflareToken retrieves the CloudFlare API token from the Keychain.

@@ -29,7 +29,7 @@ func RunSetup(ctx context.Context, domain string, verbose bool) error {
 	if err != nil {
 		return fmt.Errorf("CloudFlare credentials not found. Run: hoston auth cloudflare")
 	}
-	ncAPIUser, ncAPIKey, ncUsername, err := keychain.GetNamecheapCredentials()
+	ncUsername, ncAPIKey, err := keychain.GetNamecheapCredentials()
 	if err != nil {
 		return fmt.Errorf("NameCheap credentials not found. Run: hoston auth namecheap")
 	}
@@ -78,7 +78,7 @@ func RunSetup(ctx context.Context, domain string, verbose bool) error {
 		clientIP = strings.TrimSpace(line)
 	}
 
-	nc := namecheap.NewClient(ncAPIUser, ncAPIKey, ncUsername, clientIP, false)
+	nc := namecheap.NewClient(ncUsername, ncAPIKey, ncUsername, clientIP, false)
 	err = nc.SetCustomNameservers(domain, nameservers)
 	if err != nil {
 		fmt.Printf("\n⚠ Automatic NS update failed: %v\n", err)
