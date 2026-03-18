@@ -265,6 +265,17 @@ func RunSetup(ctx context.Context, cfg SetupConfig) error {
 	}
 	fmt.Println(successStyle.Render(fmt.Sprintf("✓ %s configured", selectedProvider.Name())))
 
+	// For Firebase, the custom domain must be added via the Console.
+	if selectedProvider.Name() == "Firebase Hosting" {
+		consoleURL := firebase.ConsoleURL(params["project_id"], params["site_name"])
+		linkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Underline(true)
+		dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+		fmt.Println()
+		fmt.Println(warnStyle.Render("  ⚠ Add your custom domain in the Firebase Console:"))
+		fmt.Println("    " + linkStyle.Render(consoleURL))
+		fmt.Println(dimStyle.Render("    (Click \"Add custom domain\" and enter: " + domain + ")"))
+	}
+
 	// -----------------------------------------------------------------------
 	// Step 7: Create DNS records at DNS provider
 	// -----------------------------------------------------------------------
