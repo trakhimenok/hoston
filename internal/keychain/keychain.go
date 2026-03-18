@@ -1,13 +1,11 @@
 package keychain
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"strings"
 
-	gokeychain "github.com/keybase/go-keychain"
-	"golang.org/x/term"
+	"github.com/charmbracelet/huh"
+	"github.com/trakhimenok/hoston/internal/credentials"
 )
 
 // ServiceName is the Keychain service identifier for this application.
@@ -20,82 +18,66 @@ const (
 	AccountCloudflareToken   = "cloudflare-api-token"
 )
 
-// StoreCredential stores a credential value in the macOS Keychain.
-// Any existing item for the same service/account is deleted first.
+// store is the backing credential store. Defaults to macOS Keychain.
+var store credentials.Store = credentials.NewKeychainStore()
+
+// SetStore replaces the backing credential store (useful for testing or
+// alternative platforms).
+func SetStore(s credentials.Store) { store = s }
+
+// StoreCredential stores a credential value.
 func StoreCredential(account, value string) error {
-	// Delete any existing item; ignore not-found errors.
-	_ = DeleteCredential(account)
-
-	item := gokeychain.NewItem()
-	item.SetSecClass(gokeychain.SecClassGenericPassword)
-	item.SetService(ServiceName)
-	item.SetAccount(account)
-	item.SetData([]byte(value))
-	item.SetAccessible(gokeychain.AccessibleWhenUnlocked)
-	item.SetSynchronizable(gokeychain.SynchronizableNo)
-
-	return gokeychain.AddItem(item)
+	return store.Set(account, value)
 }
 
-// GetCredential retrieves a credential value from the macOS Keychain.
-// Returns ("", nil) if the item does not exist.
+// GetCredential retrieves a credential value.
 func GetCredential(account string) (string, error) {
-	query := gokeychain.NewItem()
-	query.SetSecClass(gokeychain.SecClassGenericPassword)
-	query.SetService(ServiceName)
-	query.SetAccount(account)
-	query.SetMatchLimit(gokeychain.MatchLimitOne)
-	query.SetReturnData(true)
-
-	results, err := gokeychain.QueryItem(query)
-	if err == gokeychain.ErrorItemNotFound {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("keychain query failed for %s: %w", account, err)
-	}
-	if len(results) == 0 {
-		return "", nil
-	}
-	return string(results[0].Data), nil
+	return store.Get(account)
 }
 
-// DeleteCredential removes a credential from the macOS Keychain.
-// Not-found errors are ignored.
+// DeleteCredential removes a credential.
 func DeleteCredential(account string) error {
-	item := gokeychain.NewItem()
-	item.SetSecClass(gokeychain.SecClassGenericPassword)
-	item.SetService(ServiceName)
-	item.SetAccount(account)
-	err := gokeychain.DeleteItem(item)
-	if err == gokeychain.ErrorItemNotFound {
-		return nil
-	}
-	return err
+	return store.Delete(account)
 }
 
-// HasCredential returns true if a non-empty credential exists for the given account.
+// HasCredential returns true if a non-empty credential exists.
 func HasCredential(account string) bool {
-	v, err := GetCredential(account)
-	return err == nil && v != ""
+	return store.Has(account)
 }
 
-// AuthNamecheap interactively collects NameCheap credentials and stores them in the Keychain.
+// AuthNamecheap interactively collects NameCheap credentials and stores them.
 func AuthNamecheap() error {
-	fmt.Print("\n=== NameCheap Authentication ===\n")
+	var username, apiKey string
 
-	scanner := bufio.NewScanner(os.Stdin)
-
-	fmt.Print("NameCheap Username: ")
-	scanner.Scan()
-	username := strings.TrimSpace(scanner.Text())
-
-	fmt.Print("NameCheap API Key: ")
-	apiKeyBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
-	if err != nil {
-		return fmt.Errorf("failed to read API key: %w", err)
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("NameCheap Username").
+				Value(&username).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("username is required")
+					}
+					return nil
+				}),
+			huh.NewInput().
+				Title("NameCheap API Key").
+				EchoMode(huh.EchoModePassword).
+				Value(&apiKey).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("API key is required")
+					}
+					return nil
+				}),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return err
 	}
-	apiKey := strings.TrimSpace(string(apiKeyBytes))
+
+	username = strings.TrimSpace(username)
+	apiKey = strings.TrimSpace(apiKey)
 
 	if err := StoreCredential(AccountNamecheapUsername, username); err != nil {
 		return fmt.Errorf("failed to store NameCheap username: %w", err)
@@ -104,32 +86,47 @@ func AuthNamecheap() error {
 		return fmt.Errorf("failed to store NameCheap API key: %w", err)
 	}
 
-	fmt.Print("\n✓ NameCheap credentials stored in Keychain.\n")
+	fmt.Println("✓ NameCheap credentials stored.")
 	return nil
 }
 
-// AuthCloudflare interactively collects a CloudFlare API token and stores it in the Keychain.
+// AuthCloudflare interactively collects a CloudFlare API token and stores it.
 func AuthCloudflare() error {
-	fmt.Print("\n=== CloudFlare Authentication ===\n")
-	fmt.Print("\nCreate an API token at:\n")
-	fmt.Print("  https://dash.cloudflare.com/profile/api-tokens\n\n")
-	fmt.Print("Create a Custom Token with these permissions:\n")
-	fmt.Print("  - Zone > Zone: Edit  (required to add new zones)\n")
-	fmt.Print("  - Zone > DNS:  Edit  (required to manage DNS records)\n\n")
-	fmt.Print("Set Zone Resources to: All zones (or specific zones as needed)\n\n")
+	var token string
 
-	fmt.Print("CloudFlare API token: ")
-	tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
-	if err != nil {
-		return fmt.Errorf("failed to read CloudFlare API token: %w", err)
+	fmt.Println("Create an API token at:")
+	fmt.Println("  https://dash.cloudflare.com/profile/api-tokens")
+	fmt.Println()
+	fmt.Println("Required permissions:")
+	fmt.Println("  • Zone > Zone: Edit")
+	fmt.Println("  • Zone > DNS:  Edit")
+	fmt.Println()
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("CloudFlare API Token").
+				EchoMode(huh.EchoModePassword).
+				Value(&token).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("token is required")
+					}
+					return nil
+				}),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return err
 	}
-	token := strings.TrimSpace(string(tokenBytes))
+
+	token = strings.TrimSpace(token)
 
 	if err := StoreCredential(AccountCloudflareToken, token); err != nil {
 		return fmt.Errorf("failed to store CloudFlare API token: %w", err)
 	}
 
-	fmt.Print("\n✓ CloudFlare API token stored in Keychain.\n")
+	fmt.Println("✓ CloudFlare API token stored.")
 	return nil
 }
 

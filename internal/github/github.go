@@ -1,10 +1,52 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
+
+	"github.com/trakhimenok/hoston/internal/provider"
 )
+
+// Compile-time check that *Provider implements provider.HostingProvider.
+var _ provider.HostingProvider = (*Provider)(nil)
+
+// Provider implements provider.HostingProvider for GitHub Pages.
+type Provider struct{}
+
+// NewProvider returns a new GitHub Pages Provider.
+func NewProvider() *Provider {
+	return &Provider{}
+}
+
+// Name returns a human-readable name for the provider.
+func (p *Provider) Name() string {
+	return "GitHub Pages"
+}
+
+// Setup enables GitHub Pages for the given repository, sets the custom domain,
+// and returns the DNS records required to point the domain at GitHub Pages.
+//
+// Required params:
+//
+//	"repo" — repository in "owner/repo" format.
+func (p *Provider) Setup(ctx context.Context, domain string, params map[string]string) ([]provider.DNSRecord, error) {
+	repo, ok := params["repo"]
+	if !ok || repo == "" {
+		return nil, fmt.Errorf("github provider: missing required param \"repo\" (expected \"owner/repo\" format)")
+	}
+
+	if err := EnablePages(repo); err != nil {
+		return nil, fmt.Errorf("github provider: %w", err)
+	}
+
+	if err := SetCustomDomain(repo, domain); err != nil {
+		return nil, fmt.Errorf("github provider: %w", err)
+	}
+
+	return GetRequiredDNSRecords(domain), nil
+}
 
 // PagesConfig holds GitHub Pages configuration.
 type PagesConfig struct {
@@ -66,17 +108,10 @@ type PagesInfo struct {
 	CNAME  string `json:"cname"`
 }
 
-// DNSRecord represents a DNS record required for GitHub Pages.
-type DNSRecord struct {
-	Type    string
-	Name    string
-	Content string
-}
-
 // GetRequiredDNSRecords returns DNS records needed for GitHub Pages.
-func GetRequiredDNSRecords(domain string) []DNSRecord {
+func GetRequiredDNSRecords(domain string) []provider.DNSRecord {
 	// GitHub Pages uses these A records for apex domains.
-	return []DNSRecord{
+	return []provider.DNSRecord{
 		{Type: "A", Name: domain, Content: "185.199.108.153"},
 		{Type: "A", Name: domain, Content: "185.199.109.153"},
 		{Type: "A", Name: domain, Content: "185.199.110.153"},

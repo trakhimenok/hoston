@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
+
+	"github.com/trakhimenok/hoston/internal/provider"
 )
 
 const (
@@ -24,6 +27,9 @@ type Client struct {
 	httpClient *http.Client
 }
 
+// Compile-time assertion that *Client implements provider.Registrar.
+var _ provider.Registrar = (*Client)(nil)
+
 // NewClient creates a NameCheap API client.
 func NewClient(apiUser, apiKey, username, clientIP string, sandbox bool) *Client {
 	baseURL := productionURL
@@ -36,7 +42,7 @@ func NewClient(apiUser, apiKey, username, clientIP string, sandbox bool) *Client
 		username:   username,
 		clientIP:   clientIP,
 		baseURL:    baseURL,
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 

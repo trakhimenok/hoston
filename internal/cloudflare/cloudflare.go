@@ -5,7 +5,11 @@ import (
 	"fmt"
 
 	cf "github.com/cloudflare/cloudflare-go"
+	"github.com/trakhimenok/hoston/internal/provider"
 )
+
+// Compile-time check that *Client satisfies provider.DNSProvider.
+var _ provider.DNSProvider = (*Client)(nil)
 
 // Client wraps the CloudFlare API.
 type Client struct {
@@ -53,17 +57,8 @@ func (c *Client) GetNameservers(ctx context.Context, zoneID string) ([]string, e
 	return zone.NameServers, nil
 }
 
-// DNSRecord represents a DNS record to create.
-type DNSRecord struct {
-	Type    string
-	Name    string
-	Content string
-	TTL     int
-	Proxied bool
-}
-
 // CreateDNSRecord creates a DNS record in the specified zone.
-func (c *Client) CreateDNSRecord(ctx context.Context, zoneID string, record DNSRecord) error {
+func (c *Client) CreateDNSRecord(ctx context.Context, zoneID string, record provider.DNSRecord) error {
 	ttl := record.TTL
 	if ttl == 0 {
 		ttl = 1 // 1 = automatic
@@ -83,11 +78,22 @@ func (c *Client) CreateDNSRecord(ctx context.Context, zoneID string, record DNSR
 }
 
 // ListDNSRecords returns all DNS records for a zone.
-func (c *Client) ListDNSRecords(ctx context.Context, zoneID string) ([]cf.DNSRecord, error) {
+func (c *Client) ListDNSRecords(ctx context.Context, zoneID string) ([]provider.DNSRecord, error) {
 	rc := cf.ZoneIdentifier(zoneID)
-	records, _, err := c.api.ListDNSRecords(ctx, rc, cf.ListDNSRecordsParams{})
+	cfRecords, _, err := c.api.ListDNSRecords(ctx, rc, cf.ListDNSRecordsParams{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list DNS records: %w", err)
+	}
+	records := make([]provider.DNSRecord, len(cfRecords))
+	for i, r := range cfRecords {
+		proxied := r.Proxied != nil && *r.Proxied
+		records[i] = provider.DNSRecord{
+			Type:    r.Type,
+			Name:    r.Name,
+			Content: r.Content,
+			TTL:     r.TTL,
+			Proxied: proxied,
+		}
 	}
 	return records, nil
 }

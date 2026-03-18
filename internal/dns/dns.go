@@ -13,8 +13,6 @@ func WaitForNSPropagation(ctx context.Context, domain string, expectedNS []strin
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	fmt.Printf("Waiting for NS propagation for %s (timeout: %s)...\n", domain, timeout)
-
 	for {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("timeout waiting for NS propagation after %s", timeout)
@@ -22,7 +20,6 @@ func WaitForNSPropagation(ctx context.Context, domain string, expectedNS []strin
 
 		current, err := net.LookupNS(domain)
 		if err == nil && nsMatch(current, expectedNS) {
-			fmt.Println("✓ NS records propagated successfully")
 			return nil
 		}
 
@@ -30,7 +27,6 @@ func WaitForNSPropagation(ctx context.Context, domain string, expectedNS []strin
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			fmt.Print(".")
 		}
 	}
 }
@@ -40,8 +36,6 @@ func WaitForRecord(ctx context.Context, recordType, name, expected string, timeo
 	deadline := time.Now().Add(timeout)
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
-
-	fmt.Printf("Waiting for %s record %s → %s...\n", recordType, name, expected)
 
 	for {
 		if time.Now().After(deadline) {
@@ -78,7 +72,6 @@ func WaitForRecord(ctx context.Context, recordType, name, expected string, timeo
 		}
 
 		if found {
-			fmt.Printf("✓ %s record propagated\n", recordType)
 			return nil
 		}
 
@@ -86,7 +79,6 @@ func WaitForRecord(ctx context.Context, recordType, name, expected string, timeo
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			fmt.Print(".")
 		}
 	}
 }
@@ -98,7 +90,6 @@ func CheckHTTPS(domain string) error {
 		return fmt.Errorf("HTTPS connection failed for %s: %w", domain, err)
 	}
 	conn.Close()
-	fmt.Printf("✓ HTTPS is reachable for %s\n", domain)
 	return nil
 }
 
