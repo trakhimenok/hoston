@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/trakhimenok/hoston/internal/provider"
@@ -146,19 +148,68 @@ func CreateSite(projectID, siteName string) error {
 	return nil
 }
 
-// DeployPlaceholder deploys a minimal placeholder page.
-func DeployPlaceholder(projectID, siteName string) error {
-	// Firebase deploy requires a firebase.json and public directory.
-	// We'll use the CLI's --only hosting approach with a temp config.
-	cmd := exec.Command("firebase", "hosting:channel:deploy", "live",
-		"--project", projectID,
-		"--site", siteName,
-	)
+// DeployPlaceholder creates a temporary directory with a "Coming Soon" page
+// and deploys it to the Firebase Hosting site via `firebase deploy`.
+func DeployPlaceholder(projectID, siteName, domain string) error {
+	dir, err := os.MkdirTemp("", "hoston-deploy-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// firebase.json
+	fbJSON := fmt.Sprintf(`{
+  "hosting": {
+    "site": %q,
+    "public": "public",
+    "ignore": ["firebase.json", "**/node_modules/**"]
+  }
+}`, siteName)
+	if err := os.WriteFile(filepath.Join(dir, "firebase.json"), []byte(fbJSON), 0644); err != nil {
+		return err
+	}
+
+	// public/index.html
+	pubDir := filepath.Join(dir, "public")
+	if err := os.MkdirAll(pubDir, 0755); err != nil {
+		return err
+	}
+
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>%s</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{min-height:100vh;display:flex;align-items:center;justify-content:center;
+         font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#e2e8f0}
+    .card{text-align:center;padding:3rem}
+    h1{font-size:2.5rem;font-weight:700;margin-bottom:.75rem;
+       background:linear-gradient(135deg,#38bdf8,#818cf8);-webkit-background-clip:text;
+       -webkit-text-fill-color:transparent}
+    p{font-size:1.25rem;color:#94a3b8}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>%s</h1>
+    <p>Coming Soon</p>
+  </div>
+</body>
+</html>`, domain, domain)
+
+	if err := os.WriteFile(filepath.Join(pubDir, "index.html"), []byte(html), 0644); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("firebase", "deploy", "--only", "hosting:"+siteName, "--project", projectID)
+	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to deploy placeholder: %s", string(out))
+		return fmt.Errorf("deploy failed: %s", strings.TrimSpace(string(out)))
 	}
-	fmt.Printf("✓ Deployed to %s.web.app\n", siteName)
 	return nil
 }
 

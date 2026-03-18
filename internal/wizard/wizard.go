@@ -304,30 +304,30 @@ func RunSetup(ctx context.Context, cfg SetupConfig) error {
 	// Check default (non-custom) URLs first — they should work immediately.
 	if selectedProvider.Name() == "Firebase Hosting" {
 		siteName := params["site_name"]
-		defaultURLs := []string{
-			fmt.Sprintf("https://%s.web.app", siteName),
-			fmt.Sprintf("https://%s.firebaseapp.com", siteName),
-		}
+		checkURL := fmt.Sprintf("https://%s.web.app", siteName)
 		httpClient := &http.Client{Timeout: 15 * time.Second}
-		for _, u := range defaultURLs {
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-			if err != nil {
-				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s — request error: %v", u, err)))
-				continue
-			}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, checkURL, nil)
+		if err == nil {
 			resp, err := httpClient.Do(req)
 			if err != nil {
-				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s — not reachable: %v", u, err)))
-				continue
-			}
-			body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
-			resp.Body.Close()
-			if strings.Contains(string(body), "Site Not Found") {
-				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s → \"Site Not Found\" — deploy content first", u)))
-			} else if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-				fmt.Println(successStyle.Render(fmt.Sprintf("  ✓ %s → %d OK", u, resp.StatusCode)))
+				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s — not reachable: %v", checkURL, err)))
 			} else {
-				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s → HTTP %d", u, resp.StatusCode)))
+				body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
+				resp.Body.Close()
+				if strings.Contains(string(body), "Site Not Found") {
+					fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s → \"Site Not Found\"", checkURL)))
+					fmt.Println("    Deploying a placeholder page...")
+					if err := firebase.DeployPlaceholder(params["project_id"], siteName, domain); err != nil {
+						fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ Deploy failed: %v", err)))
+					} else {
+						fmt.Println(successStyle.Render("  ✓ Placeholder page deployed"))
+						fmt.Println(successStyle.Render(fmt.Sprintf("  ✓ %s — live", checkURL)))
+					}
+				} else if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+					fmt.Println(successStyle.Render(fmt.Sprintf("  ✓ %s → %d OK", checkURL, resp.StatusCode)))
+				} else {
+					fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s → HTTP %d", checkURL, resp.StatusCode)))
+				}
 			}
 		}
 	}
