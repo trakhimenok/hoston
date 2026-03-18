@@ -59,7 +59,7 @@ func (c *Client) GetNameservers(ctx context.Context, zoneID string) ([]string, e
 }
 
 // CreateDNSRecord creates a DNS record in the specified zone.
-// If an identical record already exists, it is treated as success.
+// If a matching record already exists, it is updated to the desired state.
 func (c *Client) CreateDNSRecord(ctx context.Context, zoneID string, record provider.DNSRecord) error {
 	ttl := record.TTL
 	if ttl == 0 {
@@ -75,10 +75,38 @@ func (c *Client) CreateDNSRecord(ctx context.Context, zoneID string, record prov
 	})
 	if err != nil {
 		// CloudFlare error 81058: "An identical record already exists."
+		// Find the existing record and update it to ensure correct state
+		// (e.g. proxied flag).
 		if strings.Contains(err.Error(), "81058") {
-			return nil
+			return c.upsertExisting(ctx, rc, zoneID, record, ttl)
 		}
 		return fmt.Errorf("failed to create DNS record %s %s: %w", record.Type, record.Name, err)
+	}
+	return nil
+}
+
+// upsertExisting finds an existing record by type+name and updates it.
+func (c *Client) upsertExisting(ctx context.Context, rc *cf.ResourceContainer, zoneID string, record provider.DNSRecord, ttl int) error {
+	existing, _, err := c.api.ListDNSRecords(ctx, rc, cf.ListDNSRecordsParams{
+		Type: record.Type,
+		Name: record.Name,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to look up existing %s record for %s: %w", record.Type, record.Name, err)
+	}
+	for _, r := range existing {
+		_, err := c.api.UpdateDNSRecord(ctx, rc, cf.UpdateDNSRecordParams{
+			ID:      r.ID,
+			Type:    record.Type,
+			Name:    record.Name,
+			Content: record.Content,
+			TTL:     ttl,
+			Proxied: &record.Proxied,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update %s record for %s: %w", record.Type, record.Name, err)
+		}
+		return nil
 	}
 	return nil
 }
