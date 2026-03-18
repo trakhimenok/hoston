@@ -3,6 +3,7 @@ package cloudflare
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	cf "github.com/cloudflare/cloudflare-go"
 	"github.com/trakhimenok/hoston/internal/provider"
@@ -58,6 +59,7 @@ func (c *Client) GetNameservers(ctx context.Context, zoneID string) ([]string, e
 }
 
 // CreateDNSRecord creates a DNS record in the specified zone.
+// If an identical record already exists, it is treated as success.
 func (c *Client) CreateDNSRecord(ctx context.Context, zoneID string, record provider.DNSRecord) error {
 	ttl := record.TTL
 	if ttl == 0 {
@@ -72,6 +74,10 @@ func (c *Client) CreateDNSRecord(ctx context.Context, zoneID string, record prov
 		Proxied: &record.Proxied,
 	})
 	if err != nil {
+		// CloudFlare error 81058: "An identical record already exists."
+		if strings.Contains(err.Error(), "81058") {
+			return nil
+		}
 		return fmt.Errorf("failed to create DNS record %s %s: %w", record.Type, record.Name, err)
 	}
 	return nil
