@@ -184,7 +184,7 @@ func RunSetup(ctx context.Context, cfg SetupConfig) error {
 	err = dnspkg.WaitForNSPropagation(ctx, domain, nameservers, 10*time.Minute)
 	if err != nil {
 		fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ NS propagation timed out: %v", err)))
-		fmt.Println("This is normal — DNS propagation can take up to 48 hours.")
+		fmt.Println("  This is normal — DNS propagation can take up to 48 hours.")
 
 		var continueAnyway bool
 		if err := huh.NewConfirm().
@@ -198,6 +198,8 @@ func RunSetup(ctx context.Context, cfg SetupConfig) error {
 		if !continueAnyway {
 			return fmt.Errorf("setup paused — rerun when NS records have propagated")
 		}
+	} else {
+		fmt.Println(successStyle.Render("✓ Nameservers propagated successfully"))
 	}
 
 	// -----------------------------------------------------------------------
