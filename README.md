@@ -1,7 +1,8 @@
-# hoston
+# hoston CLI
 
 > — Heuston, we have a domain!
-> — Roger that, we need the hoston — it's solid as Boston.
+>
+> — Roger that, we need the `hoston` — it's solid as Boston.
 
 Domain & hosting setup CLI. Automates DNS configuration, hosting setup, and custom domain provisioning across NameCheap, CloudFlare, Firebase, and GitHub Pages.
 
