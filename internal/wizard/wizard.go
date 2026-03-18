@@ -296,28 +296,60 @@ func RunSetup(ctx context.Context, cfg SetupConfig) error {
 	}
 
 	// -----------------------------------------------------------------------
-	// Step 8: Validate HTTPS and site response
+	// Step 8: Validate hosting site
 	// -----------------------------------------------------------------------
 	fmt.Println()
-	fmt.Println(stepStyle.Render("Step 8: Validating HTTPS and site response..."))
+	fmt.Println(stepStyle.Render("Step 8: Checking hosting site..."))
 
-	if err := dnspkg.CheckHTTPS(domain); err != nil {
-		fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ HTTPS not yet available: %v", err)))
-		fmt.Println("  SSL certificate provisioning can take a few minutes.")
+	// Check default (non-custom) URLs first — they should work immediately.
+	if selectedProvider.Name() == "Firebase Hosting" {
+		siteName := params["site_name"]
+		defaultURLs := []string{
+			fmt.Sprintf("https://%s.web.app", siteName),
+			fmt.Sprintf("https://%s.firebaseapp.com", siteName),
+		}
+		httpClient := &http.Client{Timeout: 15 * time.Second}
+		for _, u := range defaultURLs {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+			if err != nil {
+				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s — request error: %v", u, err)))
+				continue
+			}
+			resp, err := httpClient.Do(req)
+			if err != nil {
+				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s — not reachable: %v", u, err)))
+				continue
+			}
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
+			resp.Body.Close()
+			if strings.Contains(string(body), "Site Not Found") {
+				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s → \"Site Not Found\" — deploy content first", u)))
+			} else if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+				fmt.Println(successStyle.Render(fmt.Sprintf("  ✓ %s → %d OK", u, resp.StatusCode)))
+			} else {
+				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ %s → HTTP %d", u, resp.StatusCode)))
+			}
+		}
 	}
 
-	httpClient := &http.Client{Timeout: 15 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s", domain), nil)
-	if err != nil {
-		fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ Failed to build request: %v", err)))
+	// Check custom domain (may not be ready yet).
+	fmt.Println()
+	fmt.Printf("  Checking custom domain https://%s ...\n", domain)
+	if err := dnspkg.CheckHTTPS(domain); err != nil {
+		fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ HTTPS not yet available: %v", err)))
+		fmt.Println("    SSL certificate provisioning can take a few minutes.")
 	} else {
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ Site not responding yet: %v", err)))
-			fmt.Println("  This may resolve once DNS and SSL fully propagate.")
-		} else {
-			resp.Body.Close()
-			fmt.Println(successStyle.Render(fmt.Sprintf("✓ Site responds with status %d", resp.StatusCode)))
+		httpClient := &http.Client{Timeout: 15 * time.Second}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s", domain), nil)
+		if err == nil {
+			resp, err := httpClient.Do(req)
+			if err != nil {
+				fmt.Println(warnStyle.Render(fmt.Sprintf("  ⚠ Site not responding yet: %v", err)))
+				fmt.Println("    This may resolve once DNS fully propagates.")
+			} else {
+				resp.Body.Close()
+				fmt.Println(successStyle.Render(fmt.Sprintf("  ✓ https://%s → %d OK", domain, resp.StatusCode)))
+			}
 		}
 	}
 
