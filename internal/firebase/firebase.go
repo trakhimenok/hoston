@@ -71,7 +71,7 @@ func (p *Provider) Setup(ctx context.Context, domain string, params map[string]s
 	// done via the Firebase Console.  Return the well-known DNS records so
 	// hoston can configure them at the DNS provider, and surface a console
 	// link for the manual step.
-	return GetRequiredDNSRecords(domain), nil
+	return GetRequiredDNSRecords(domain, siteName), nil
 }
 
 // SiteExists checks if a Firebase Hosting site exists.
@@ -172,9 +172,12 @@ func GetAutoURL(siteName string) string {
 	return fmt.Sprintf("https://%s.web.app", siteName)
 }
 
-// GetRequiredDNSRecords returns the standard Firebase Hosting DNS records for apex domains.
-func GetRequiredDNSRecords(domain string) []provider.DNSRecord {
+// GetRequiredDNSRecords returns the DNS records needed for Firebase Hosting:
+//   - A TXT ownership-verification record (hosting-site=<site>)
+//   - An A record pointing to Firebase Hosting
+func GetRequiredDNSRecords(domain, siteName string) []provider.DNSRecord {
 	return []provider.DNSRecord{
+		{Type: "TXT", Name: domain, Content: fmt.Sprintf("hosting-site=%s", siteName)},
 		{Type: "A", Name: domain, Content: "199.36.158.100"},
 	}
 }
