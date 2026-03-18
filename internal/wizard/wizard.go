@@ -2,6 +2,7 @@ package wizard
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +16,7 @@ import (
 	"github.com/charmbracelet/log"
 
 	dnspkg "github.com/trakhimenok/hoston/internal/dns"
+	"github.com/trakhimenok/hoston/internal/firebase"
 	"github.com/trakhimenok/hoston/internal/provider"
 )
 
@@ -239,6 +241,25 @@ func RunSetup(ctx context.Context, cfg SetupConfig) error {
 	fmt.Printf("  Configuring %s...\n", selectedProvider.Name())
 
 	records, err := selectedProvider.Setup(ctx, domain, params)
+	if errors.Is(err, firebase.ErrSiteAlreadyExists) {
+		siteName := params["site_name"]
+		fmt.Println(warnStyle.Render(fmt.Sprintf("  Site %q already exists", siteName)))
+
+		var useExisting bool
+		if err := huh.NewConfirm().
+			Title(fmt.Sprintf("Use existing site %q?", siteName)).
+			Affirmative("Yes, use it").
+			Negative("No, abort").
+			Value(&useExisting).
+			Run(); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+		if !useExisting {
+			return fmt.Errorf("setup aborted — choose a different site name")
+		}
+		params["use_existing"] = "true"
+		records, err = selectedProvider.Setup(ctx, domain, params)
+	}
 	if err != nil {
 		return fmt.Errorf("%s setup failed: %w", selectedProvider.Name(), err)
 	}
