@@ -1,4 +1,4 @@
-# hoston CLI
+# 🚀 hoston CLI
 
 > — Heuston, we have a domain!
 >
@@ -6,7 +6,7 @@
 
 Domain & hosting setup CLI. Automates DNS configuration, hosting setup, and custom domain provisioning across NameCheap, CloudFlare, Firebase, and GitHub Pages.
 
-## Install
+## 📦 Install
 
 ```sh
 go install github.com/trakhimenok/hoston@latest
@@ -20,14 +20,14 @@ cd hoston
 go build -o hoston .
 ```
 
-## Prerequisites
+## ✅ Prerequisites
 
 1. **NameCheap API access**: Enable at https://ap.www.namecheap.com/settings/tools/apiaccess/ and whitelist your IP
 2. **CloudFlare API token**: Create a Custom Token at https://dash.cloudflare.com/profile/api-tokens with `Zone > Zone: Edit` and `Zone > DNS: Edit` permissions (the "Edit zone DNS" template lacks zone creation rights)
 3. **Firebase tools** (for Firebase hosting): `npm i -g firebase-tools && firebase login`
 4. **GitHub CLI** (for GitHub Pages): `brew install gh && gh auth login`
 
-## Quick Start
+## ⚡ Quick Start
 
 ```sh
 # Store credentials (one-time)
@@ -38,7 +38,7 @@ hoston auth cloudflare
 hoston setup example.com
 ```
 
-## Commands
+## 🛠️ Commands
 
 ### `hoston auth <provider>`
 
@@ -68,7 +68,7 @@ If any step fails, it shows manual instructions and waits for confirmation.
 
 Check domain status across providers. *(Coming soon)*
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 hoston
@@ -85,6 +85,6 @@ hoston
 └── go.mod
 ```
 
-## License
+## 📄 License
 
 MIT
