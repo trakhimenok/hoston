@@ -141,6 +141,17 @@ func RunSetup(ctx context.Context, cfg SetupConfig) error {
 		if err != nil {
 			fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ Automatic NS update failed: %v", err)))
 			fmt.Println()
+
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "Invalid request IP") || strings.Contains(errMsg, "ClientIP") {
+				dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+				linkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Underline(true)
+				fmt.Println(warnStyle.Render("  Your IP is not whitelisted in NameCheap API access."))
+				fmt.Println(dimStyle.Render("  Whitelist it at:"))
+				fmt.Println("  " + linkStyle.Render("https://ap.www.namecheap.com/settings/tools/apiaccess"))
+				fmt.Println()
+			}
+
 			fmt.Println("Please update nameservers manually:")
 			fmt.Printf("  1. Go to your registrar's domain control panel for %s\n", domain)
 			fmt.Println("  2. Under 'Nameservers', select 'Custom DNS'")
