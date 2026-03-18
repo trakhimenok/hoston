@@ -20,15 +20,17 @@ func NewKeychainStore() *KeychainStore {
 	return &KeychainStore{}
 }
 
-// GetAll fetches every credential stored under the hoston service in a
-// single Keychain query — this triggers at most one password prompt.
+// GetAll fetches every credential stored under the hoston service.
+// It first lists account names (attributes only), then fetches each
+// value individually. All results are cached so subsequent Get calls
+// are served from memory with no further Keychain prompts.
 func (k *KeychainStore) GetAll() (map[string]string, error) {
+	// Step 1: list all account names (attributes only — no data).
 	query := gokeychain.NewItem()
 	query.SetSecClass(gokeychain.SecClassGenericPassword)
 	query.SetService(serviceName)
 	query.SetMatchLimit(gokeychain.MatchLimitAll)
 	query.SetReturnAttributes(true)
-	query.SetReturnData(true)
 
 	results, err := gokeychain.QueryItem(query)
 	if err == gokeychain.ErrorItemNotFound {
@@ -39,22 +41,24 @@ func (k *KeychainStore) GetAll() (map[string]string, error) {
 		return nil, err
 	}
 
+	// Step 2: fetch data for each account individually.
 	m := make(map[string]string, len(results))
 	for _, r := range results {
-		if r.Account != "" {
-			m[r.Account] = string(r.Data)
+		if r.Account == "" {
+			continue
 		}
+		val, err := k.getSingle(r.Account)
+		if err != nil {
+			return nil, err
+		}
+		m[r.Account] = val
 	}
 	k.cache = m
 	return m, nil
 }
 
-func (k *KeychainStore) Get(account string) (string, error) {
-	// Serve from cache when available (populated by GetAll / Preload).
-	if k.cache != nil {
-		return k.cache[account], nil
-	}
-
+// getSingle fetches a single credential value (bypasses cache).
+func (k *KeychainStore) getSingle(account string) (string, error) {
 	query := gokeychain.NewItem()
 	query.SetSecClass(gokeychain.SecClassGenericPassword)
 	query.SetService(serviceName)
@@ -63,16 +67,21 @@ func (k *KeychainStore) Get(account string) (string, error) {
 	query.SetReturnData(true)
 
 	results, err := gokeychain.QueryItem(query)
-	if err == gokeychain.ErrorItemNotFound {
+	if err == gokeychain.ErrorItemNotFound || len(results) == 0 {
 		return "", nil
 	}
 	if err != nil {
 		return "", err
 	}
-	if len(results) == 0 {
-		return "", nil
-	}
 	return string(results[0].Data), nil
+}
+
+func (k *KeychainStore) Get(account string) (string, error) {
+	// Serve from cache when available (populated by GetAll / Preload).
+	if k.cache != nil {
+		return k.cache[account], nil
+	}
+	return k.getSingle(account)
 }
 
 func (k *KeychainStore) Set(account, value string) error {
