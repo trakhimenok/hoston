@@ -228,7 +228,7 @@ func GetAutoURL(siteName string) string {
 //   - An A record pointing to Firebase Hosting
 func GetRequiredDNSRecords(domain, siteName string) []provider.DNSRecord {
 	return []provider.DNSRecord{
-		{Type: "TXT", Name: domain, Content: fmt.Sprintf("hosting-site=%s", siteName)},
+		{Type: "TXT", Name: domain, Content: fmt.Sprintf("\"hosting-site=%s\"", siteName)},
 		{Type: "A", Name: domain, Content: "199.36.158.100"},
 	}
 }
