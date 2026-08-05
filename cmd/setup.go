@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 	cfclient "github.com/trakhimenok/hoston/internal/cloudflare"
 	"github.com/trakhimenok/hoston/internal/firebase"
